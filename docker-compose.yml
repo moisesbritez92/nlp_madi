@@ -1,0 +1,81 @@
+# ============================================
+# Docker Compose para JupyterLab + Streamlit
+# ============================================
+# 
+# USO:
+#   Iniciar:    docker-compose up -d
+#   Detener:    docker-compose down
+#   Ver logs:   docker-compose logs -f
+#   Rebuild:    docker-compose up -d --build
+#
+# ACCESO:
+#   JupyterLab: http://localhost:18888
+#   Streamlit:  http://localhost:8501
+#
+# ============================================
+
+services:
+  jupyter-streamlit:
+    # Nombre del contenedor
+    container_name: jupyter-streamlit-app
+    
+    # Construir desde el Dockerfile local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Mapeo de puertos
+    # host:container
+    ports:
+      - "18888:8888"   # JupyterLab
+      - "8501:8501"    # Streamlit
+    
+    # Volúmenes - montar directorio local
+    volumes:
+      # Montar el directorio actual en /app/Materiales docentes/2526
+      - .:/app/Materiales docentes/2526
+      
+      # Volumen para persistir datos de Jupyter
+      - jupyter_data:/root/.jupyter
+      
+      # Volumen para caché de modelos (evita re-descargar)
+      - huggingface_cache:/root/.cache/huggingface
+    
+    # Variables de entorno
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - PYTHONUNBUFFERED=1
+      # Desactivar telemetría de Streamlit
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # Configurar Streamlit para Docker
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    
+    # Directorio de trabajo inicial (el compartido)
+    working_dir: /app/Materiales docentes/2526
+    
+    # Reiniciar automáticamente
+    restart: unless-stopped
+    
+    # Recursos (opcional - ajustar según necesidad)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 8G
+    #     reservations:
+    #       memory: 4G
+    
+    # Healthcheck para verificar que JupyterLab está corriendo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Volúmenes persistentes
+volumes:
+  jupyter_data:
+    name: jupyter-streamlit-data
+  huggingface_cache:
+    name: huggingface-models-cache
