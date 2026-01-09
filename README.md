@@ -1,21 +1,18 @@
-# 🚀 Running Streamlit Apps in Jupyter Docker
+# 🧠 NLP MADI - Streamlit Application
 
-> **Guía completa para ejecutar aplicaciones Streamlit dentro de un contenedor Docker con JupyterLab**
+> **Aplicación multipage de NLP con Streamlit, incluyendo RAG Search, Image-to-Speech y Análisis de Sentimientos**
 
 ---
 
 ## 📋 Tabla de Contenidos
 
 - [Requisitos](#-requisitos)
-- [Construcción del Entorno Docker](#-construcción-del-entorno-docker)
-- [Flujo Completo](#-flujo-completo-paso-a-paso)
-- [Checklist de Verificación](#-checklist-de-verificación)
-- [Comandos Exactos](#-comandos-exactos)
-- [Important Notes](#%EF%B8%8F-important-notes)
-- [Common Issues](#-common-issues-troubleshooting)
-- [Run Demo App](#-run-demo-app)
-- [Run Image to Speech App](#-run-image-to-speech-app)
-- [Run Your Own Streamlit App](#-run-your-own-streamlit-app)
+- [Instalación Rápida](#-instalación-rápida)
+- [Estructura del Proyecto](#-estructura-del-proyecto)
+- [Páginas Disponibles](#-páginas-disponibles)
+- [Configuración del LLM](#-configuración-del-llm)
+- [Docker](#-docker)
+- [Validación / Testing](#-validación--testing)
 
 ---
 
@@ -23,24 +20,126 @@
 
 | Requisito | Descripción |
 |-----------|-------------|
-| **Docker** | Docker Desktop instalado y corriendo |
-| **Docker Compose** | Incluido con Docker Desktop |
-| **Puerto JupyterLab** | `18888` (acceso via `http://localhost:18888`) |
+| **Python** | 3.10+ |
+| **Docker** | Docker Desktop (opcional, para contenedores) |
 | **Puerto Streamlit** | `8501` (acceso via `http://localhost:8501`) |
+| **LLM Backend** | Ollama local o OpenAI API |
 
 ---
 
-## 🐳 Construcción del Entorno Docker
+## 🚀 Instalación Rápida
+
+### Opción 1: Virtual Environment (Local)
+
+```bash
+# Crear y activar entorno virtual
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Ejecutar aplicación
+streamlit run app.py
+```
+
+### Opción 2: Docker
+
+```bash
+# Construir y ejecutar
+docker-compose up -d --build
+
+# Acceder a:
+# - Streamlit: http://localhost:8501
+# - JupyterLab: http://localhost:18888
+```
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+nlp_madi/
+├── app.py                      # 🏠 Home page
+├── pages/
+│   ├── 1_🖼️_Image_to_Speech.py  # Imagen → Audio
+│   ├── 2_📝_Analisis_Sentimientos.py  # Sentiment Analysis
+│   └── 3_🔍_RAG_Search.py      # ⭐ RAG Search Tool
+├── rag/                        # Módulos RAG
+│   ├── __init__.py
+│   ├── splade_retriever.py     # SPLADE semantic retrieval
+│   ├── bm25_retriever.py       # BM25 lexical retrieval
+│   ├── llm_client.py           # LLM API client
+│   ├── data_loader.py          # Corpus loading utilities
+│   └── prompts.py              # System prompts for RAG
+├── requirements.txt
+├── Dockerfile
+└── docker-compose.yml
+```
+
+---
+
+## 📄 Páginas Disponibles
+
+### 🖼️ Image to Speech
+Convierte imágenes en audio hablado usando:
+- **BLIP** para generar descripciones
+- **Kokoro TTS** para síntesis de voz
+
+### 📝 Análisis de Sentimientos
+Analiza comentarios y reviews:
+- Clasificación 1-5 estrellas (multilingüe)
+- Detección de emociones (inglés)
+- Análisis batch con exportación CSV
+
+### 🔍 RAG Search (NEW!)
+Búsqueda semántica con Retrieval-Augmented Generation:
+- **SPLADE**: Sparse semantic retrieval con expansión de términos
+- **BM25**: Classic lexical retrieval
+- **LLM Integration**: Respuestas generadas con citación de fuentes
+
+---
+
+## 🤖 Configuración del LLM
+
+### Ollama (Local - Recomendado)
+
+1. Instalar [Ollama](https://ollama.ai/)
+2. Descargar un modelo:
+   ```bash
+   ollama pull gemma3
+   # o
+   ollama pull llama2
+   ```
+3. En RAG Search, configurar:
+   - URL: `http://localhost:11434/api/chat`
+   - Model: `gemma3`
+
+### Ollama Remoto
+
+Si tienes Ollama en otro servidor:
+- URL: `http://<server-ip>:11434/api/chat`
+
+### OpenAI API
+
+1. Obtener API key en [OpenAI Platform](https://platform.openai.com/)
+2. En RAG Search sidebar:
+   - Backend: "OpenAI API"
+   - API Key: tu clave
+   - Model: `gpt-3.5-turbo` o `gpt-4`
+
+---
+
+## 🐳 Docker
 
 ### Archivos incluidos
 
 ```
-streamlit_app/
-├── Dockerfile              # Imagen base con JupyterLab + Streamlit
+├── Dockerfile              # Imagen base con dependencias
 ├── docker-compose.yml      # Orquestación del contenedor
-├── streamlit_preinstalation.py  # Script de instalación adicional
-├── test_app.py             # App demo de Streamlit
-└── README.md               # Esta guía
 ```
 
 ### Construir e iniciar el contenedor
@@ -55,6 +154,39 @@ docker-compose up -d --build
 ```bash
 docker-compose ps
 ```
+
+---
+
+## ✅ Validación / Testing
+
+### Checklist de RAG Search
+
+| Test | Query | Resultado Esperado |
+|------|-------|-------------------|
+| **BM25 vs SPLADE** | "What is the difference between TF IDF and BM25 scoring?" | Debe citar [doc5], [doc6], [doc43] |
+| **Semantic Expansion** | "Any document talking about Spanish products?" | SPLADE debe encontrar doc46 (paella/tortilla) aunque no diga "Spanish" |
+| **No Evidence** | "What is quantum computing?" | Debe indicar que no hay información suficiente |
+| **Citation** | Cualquier query | La respuesta debe incluir [docX] inline |
+
+### Queries de Prueba Recomendadas
+
+```
+1. What is the difference between TF IDF and BM25 scoring?
+2. How does SPLADE create sparse query expansion terms?
+3. Why do we use cosine similarity when ranking documents?
+4. What is retrieval augmented generation and why is it useful?
+5. How do chunking and overlap stride help long document retrieval?
+6. Any document talking about Spanish products?
+7. What are stopwords stemming and lemmatization used for?
+```
+
+### Verificar Conexión LLM
+
+1. Ir a RAG Search
+2. En sidebar, click "🔗 Test LLM Connection"
+3. Debe mostrar "Connected successfully"
+
+---
 
 **Salida esperada:**
 ```
